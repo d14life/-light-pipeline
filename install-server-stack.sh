@@ -12,6 +12,13 @@
 #  ComfyUI as if it were local. Blender assembly stays on your PC; only the
 #  final Cycles render runs here, launched over ssh.
 #
+#  Base image: Runpod Pytorch 2.8.0 is a good choice - Pixal3D's prebuilt CUDA
+#  wheels target torch 2.7/2.8. ComfyUI is installed on top by this script.
+#
+#  STORAGE: use a NETWORK VOLUME, not a "volume disk". A volume disk is tied to
+#  the pod's lifecycle and takes 180 GB of weights with it when the pod is
+#  terminated. Create the network volume under Storage first, then attach it.
+#
 #  Run:  bash install-server-stack.sh
 #        BLENDER_VER=4.5.4 bash install-server-stack.sh     # keep in step with your PC
 # ============================================================
@@ -73,9 +80,21 @@ bpy.ops.wm.save_userpref()
 PY
 blender -b --python "$WS/enable_gpu.py" 2>&1 | grep -E '^\[gpu\]'
 
-echo "### 4/5  ComfyUI custom nodes"
+echo "### 4/5  ComfyUI + custom nodes"
+# The Pytorch 2.8.0 template ships no ComfyUI, and that is the better base:
+# Pixal3D's prebuilt CUDA wheels target torch 2.7/2.8, and a ready-made ComfyUI
+# image often pins something else. Install ComfyUI on top instead of fighting it.
 if [ ! -d "$CU" ]; then
-  echo "!! no ComfyUI at $CU - start the pod from a ComfyUI template, or set COMFY=<path>"
+  echo "    no ComfyUI at $CU - installing it"
+  git clone --depth 1 https://github.com/comfyanonymous/ComfyUI "$CU"     || { echo "!! ComfyUI clone failed"; exit 1; }
+  # torch is already in the image; installing ComfyUI's pin would downgrade it
+  # and break the wheels, so drop it from the requirements before installing.
+  grep -viE '^(torch|torchvision|torchaudio)([=<>~!]|$)' "$CU/requirements.txt"     > /tmp/comfy-req.txt
+  pip install -q -r /tmp/comfy-req.txt 2>&1 | tail -2
+  python -c "import torch; print(f'    torch {torch.__version__}, cuda {torch.version.cuda}')"
+fi
+if [ ! -d "$CU" ]; then
+  echo "!! ComfyUI still missing at $CU"
 else
   CN="$CU/custom_nodes"; mkdir -p "$CN"
   clone () {  # clone <url> <dir> [noreqs]
