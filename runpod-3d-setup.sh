@@ -33,6 +33,11 @@
 # ============================================================
 set -uo pipefail
 
+# The pod image marks its dist-packages as externally managed (PEP 668), so a
+# plain `pip install` refuses and everything downstream silently has no tools.
+# This is a disposable container built for exactly this - override it.
+export PIP_BREAK_SYSTEM_PACKAGES=1
+
 TIER="${1:-48}"
 CU="${COMFY:-/workspace/ComfyUI}"
 WITH_WAN="${WITH_WAN:-0}"
@@ -46,7 +51,23 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 mkdir -p "$CU"/models/{unet,diffusion_models,text_encoders,vae,loras,facebook,trellis2,hunyuan3d,BiRefNet}
 mkdir -p "$CU"/models/Pixal3D/TencentARC_Pixal3D
 
-dl () { echo ">>> $1 :: $2"; hf download "$1" --include "$2" --local-dir "$3" || echo "!! FAILED: $1 $2"; }
+DL_FAILED=0
+dl () {
+  echo ">>> $1 :: $2"
+  if ! hf download "$1" --include "$2" --local-dir "$3"; then
+    echo "!! FAILED: $1 $2"
+    DL_FAILED=$((DL_FAILED + 1))
+  fi
+}
+# A run where every download failed used to end with a cheerful summary and
+# exit 0. Report the count and exit non-zero so a caller can tell.
+report () {
+  if [ "$DL_FAILED" -gt 0 ]; then
+    echo "!! $DL_FAILED download(s) FAILED - see above"
+    return 1
+  fi
+  echo "all downloads succeeded"
+}
 
 # hf download preserves repo-relative paths, so "split_files/vae/x" lands at
 # models/split_files/vae/x - a folder ComfyUI never scans. Fold it down.
@@ -84,7 +105,7 @@ if [ "$TIER" = "lean" ]; then
   fi
   flatten
   echo; du -sh "$CU/models"; df -h "$CU"
-  exit 0
+  report; exit $?
 fi
 
 echo "=== tier ${TIER} GB | wan=${WITH_WAN} | -> $CU ==="
@@ -152,3 +173,4 @@ flatten
 echo; echo "=== what landed ==="
 find "$CU/models" \( -name '*.gguf' -o -name '*.safetensors' \) -size +100M -exec du -h {} + | sort -h
 du -sh "$CU/models"; df -h "$CU"
+report

@@ -24,6 +24,11 @@
 # ============================================================
 set -uo pipefail
 
+# The pod image marks its dist-packages as externally managed (PEP 668), so a
+# plain `pip install` refuses and everything downstream silently has no tools.
+# This is a disposable container built for exactly this - override it.
+export PIP_BREAK_SYSTEM_PACKAGES=1
+
 WS="${WS:-/workspace}"
 CU="${COMFY:-$WS/ComfyUI}"
 BLENDER_VER="${BLENDER_VER:-4.5.3}"   # matched to the PC: a .blend must
