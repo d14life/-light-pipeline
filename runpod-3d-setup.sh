@@ -18,9 +18,15 @@
 #         NATTEN is only for strict NAF / the Pixal3D-T variant.
 #    visualbruno/ComfyUI-Trellis2  <- A/B comparison
 #
+#  LICENCES - what you may actually SELL output from:
+#    MIT / Apache-2.0 and clean: Pixal3D, TRELLIS.2, FLUX.2 klein 4B, Wan 2.2,
+#                                BiRefNet
+#    FLUX.2 dev: non-commercial. Fine to use, not to sell from - switch the
+#                image step to klein 4B if the output is commercial.
+#    Hunyuan3D-2.1: opt-in only, its licence excludes the EU, UK and Korea.
+#
 #  GATED - run `hf auth login`, then accept the licence on each HF page:
 #    black-forest-labs/FLUX.2-dev              (auto-approves on accept)
-#    briaai/RMBG-2.0                           (auto-approves on accept)
 #    facebook/dinov3-vitl16-pretrain-lvd1689m  (MANUAL review by Meta -
 #        request access a day BEFORE renting the pod, or Pixal3D/TRELLIS
 #        will be missing their image encoder)
@@ -37,7 +43,7 @@ command -v hf >/dev/null || pip install -q -U "huggingface_hub[cli]"
 # between roughly two hours of pod time and forty minutes.
 pip install -q -U hf_transfer 2>/dev/null
 export HF_HUB_ENABLE_HF_TRANSFER=1
-mkdir -p "$CU"/models/{unet,diffusion_models,text_encoders,vae,loras,facebook,trellis2,hunyuan3d,RMBG-2.0}
+mkdir -p "$CU"/models/{unet,diffusion_models,text_encoders,vae,loras,facebook,trellis2,hunyuan3d,BiRefNet}
 mkdir -p "$CU"/models/Pixal3D/TencentARC_Pixal3D
 
 dl () { echo ">>> $1 :: $2"; hf download "$1" --include "$2" --local-dir "$3" || echo "!! FAILED: $1 $2"; }
@@ -66,7 +72,7 @@ if [ "$TIER" = "lean" ]; then
   dl Comfy-Org/vae-text-encorder-for-flux-klein-4b "split_files/*" "$CU/models"
   dl TencentARC/Pixal3D "*" "$CU/models/Pixal3D/TencentARC_Pixal3D"
   dl facebook/dinov3-vitl16-pretrain-lvd1689m "*" "$CU/models/facebook/dinov3-vitl16-pretrain-lvd1689m"
-  dl briaai/RMBG-2.0 "*" "$CU/models/RMBG-2.0"
+  dl ZhengPeng7/BiRefNet "*" "$CU/models/BiRefNet"
   if [ "$WITH_WAN" = "1" ]; then
     # Wan 2.2 I2V, GGUF Q5 - ~13 GB per expert, loaded one at a time.
     # For adding motion to a finished Cycles frame, not for the registered pair.
@@ -129,12 +135,18 @@ fi
 dl TencentARC/Pixal3D "*" "$CU/models/Pixal3D/TencentARC_Pixal3D"
 if [ "$TIER" -ge 48 ]; then
   dl microsoft/TRELLIS.2-4B "*" "$CU/models/trellis2"    # MIT, for A/B
-  dl tencent/Hunyuan3D-2.1  "*" "$CU/models/hunyuan3d"   # third opinion + PBR
+  # Tencent Community Licence: EXPRESSLY DOES NOT APPLY in the EU, UK or South
+  # Korea. Opt in with WITH_HUNYUAN=1 only if you are outside those.
+  if [ "${WITH_HUNYUAN:-0}" = "1" ]; then
+    dl tencent/Hunyuan3D-2.1 "*" "$CU/models/hunyuan3d"
+  else
+    echo ">>> skipping Hunyuan3D-2.1 (licence excludes EU/UK/KR; WITH_HUNYUAN=1 to fetch)"
+  fi
 else
   dl ilintar/trellis2-gguf "*Q8*" "$CU/models/trellis2"
 fi
 dl facebook/dinov3-vitl16-pretrain-lvd1689m "*" "$CU/models/facebook/dinov3-vitl16-pretrain-lvd1689m"
-dl briaai/RMBG-2.0 "*" "$CU/models/RMBG-2.0"
+dl ZhengPeng7/BiRefNet "*" "$CU/models/BiRefNet"
 
 flatten
 echo; echo "=== what landed ==="
