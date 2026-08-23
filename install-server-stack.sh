@@ -39,7 +39,10 @@ echo "### 1/5  system libs (Blender links these even in background mode)"
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends \
   xz-utils xvfb libx11-6 libxi6 libxxf86vm1 libxrender1 libxfixes3 \
-  libgl1 libsm6 libice6 libglu1-mesa libegl1 libxkbcommon0 curl git ca-certificates
+  libgl1 libsm6 libice6 libglu1-mesa libegl1 libxkbcommon0 curl git ca-certificates   build-essential cmake ninja-build python3-dev libeigen3-dev
+# TRELLIS.2's o-voxel includes <Eigen/Dense>, but Debian ships the headers under
+# eigen3/. Without this link the build dies on "Eigen/Dense: No such file".
+ln -sfn /usr/include/eigen3/Eigen /usr/include/Eigen
 
 echo "### 2/5  Blender ${BLENDER_VER} -> ${BL_DIR}"
 # Official tarball. Never apt - the packaged Blender is years behind.
