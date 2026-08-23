@@ -1,0 +1,6 @@
+# These run on Linux. CRLF turns every line into `command\r` and bash dies
+# with "\r: command not found" - force LF regardless of the checkout platform.
+*.sh    text eol=lf
+*.py    text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
