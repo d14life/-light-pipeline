@@ -190,20 +190,35 @@ def comfy_api():
 
 
 def pixal_wheels():
-    """The CUDA kernels Pixal3D needs, imported for real - not just pip-listed."""
-    need = ["flex_gemm_ap", "cumesh_vb", "o_voxel_vb_ap", "drtk"]
-    missing = []
-    for mod in need:
-        r = run([sys.executable, "-c", f"import {mod}"])
-        if r.returncode != 0:
-            missing.append(mod)
-    attn = run([sys.executable, "-c", "import flash_attn"]).returncode == 0
+    """The CUDA kernels, imported for real - not merely present in pip list.
+
+    Each extension ships under either of two names (`flex_gemm` or
+    `flex_gemm_ap`, and so on) and Pixal3D accepts both, so this accepts both
+    too - demanding only the _ap variant fails a perfectly good install.
+    o_voxel additionally imports nvdiffrast at load time, which is filed as
+    optional everywhere and is not, so it is checked here.
+    """
+    need = [("flex_gemm", "flex_gemm_ap"), ("cumesh", "cumesh_vb"),
+            ("o_voxel", "o_voxel_vb_ap"), ("drtk", None),
+            ("nvdiffrast.torch", None)]
+    missing, found = [], []
+    for primary, alt in need:
+        for name in (primary, alt):
+            if name is None:
+                continue
+            if run([sys.executable, "-c", "import " + name]).returncode == 0:
+                found.append(name)
+                break
+        else:
+            missing.append(primary if alt is None else primary + " or " + alt)
+    attn = (run([sys.executable, "-c", "import flash_attn"]).returncode == 0
+            or run([sys.executable, "-c", "import flash_attn_interface"]).returncode == 0)
     if missing:
-        die("cannot import: " + ", ".join(missing) +
-            "\n  run Pixal3D's Environment Check node - it names the prebuilt wheels")
+        die("cannot import: " + ", ".join(missing) + "; build from source per "
+            "custom_nodes/Pixal3D-ComfyUI/docs/linux_wsl_cuda.md")
     if not attn:
-        die("flash_attn will not import; Pixal3D needs FlashAttention 2 or 3")
-    print(f"pixal wheel verification passed ({len(need)} kernels + flash_attn import)")
+        die("neither flash_attn nor flash_attn_interface imports; Pixal3D needs one")
+    print("pixal wheel verification passed (%d kernels + flash_attn)" % len(found))
 
 
 MODES = {
