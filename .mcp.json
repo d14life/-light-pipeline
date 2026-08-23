@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "blender": {
+      "command": "uvx",
+      "args": ["blender-mcp"]
+    },
+    "comfyui": {
+      "command": "npx",
+      "args": ["-y", "comfyui-mcp"],
+      "env": { "COMFYUI_URL": "http://127.0.0.1:3000" }
+    }
+  }
+}

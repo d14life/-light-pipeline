@@ -1,0 +1,11 @@
+# never commit weights, renders or scene output - they are regenerated
+*.safetensors
+*.gguf
+*.glb
+*.exr
+*.blend
+*.blend1
+renders/
+props/
+refs/
+__pycache__/
