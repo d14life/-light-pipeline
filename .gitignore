@@ -9,3 +9,8 @@ renders/
 props/
 refs/
 __pycache__/
+
+# unlazy local coordination state
+.unlazy/
+.unlazy-hook-state.json
+checks/_*
