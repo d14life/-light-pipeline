@@ -17,6 +17,7 @@ cannot produce a sheet it says so and exits non-zero - silence is never success.
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -181,8 +182,9 @@ def do_blender(mode, src, views=6):
     script = os.path.join(OUT_DIR, "_bl.py")
     with open(script, "w", encoding="utf-8") as f:
         f.write(BL_SCRIPT)
+    # Only the numbered view frames - a blanket "v*.png" also ate video_sheet.png.
     for old in os.listdir(OUT_DIR):
-        if old.startswith("v") and old.endswith(".png"):
+        if re.fullmatch(r"v\d+\.png", old):
             os.remove(os.path.join(OUT_DIR, old))
     r = subprocess.run(
         [BLENDER, "-b", "--python", script, "--", mode, src, OUT_DIR.replace("\\", "/"), str(views)],
@@ -197,7 +199,7 @@ def do_blender(mode, src, views=6):
         sys.exit(1)
     imgs = sorted(
         (os.path.join(OUT_DIR, f) for f in os.listdir(OUT_DIR)
-         if f.startswith("v") and f.endswith(".png")),
+         if re.fullmatch(r"v\d+\.png", f)),
         key=lambda p: int(os.path.basename(p)[1:-4]),
     )
     labels = [f"{360*i//max(len(imgs),1)}deg" for i in range(len(imgs))] if mode == "glb" else None
