@@ -39,15 +39,28 @@ def run(cmd, **kw):
 
 
 def find(root, needle, min_gb=0.0):
-    """Locate a file by substring anywhere under root, optionally size-checked."""
-    for base, _dirs, files in os.walk(root):
+    """Largest file whose name contains `needle`, ignoring the hf cache.
+
+    Two traps here, both hit for real. `hf download --local-dir` leaves a
+    .cache/huggingface tree of tiny metadata files named after their targets,
+    so a first-match search finds a 0-byte stub next to a 27 GB checkpoint.
+    And several files can share a needle (umt5 fp16 and fp8), so the largest
+    is the one worth judging.
+    """
+    best, best_gb = None, 0.0
+    for base, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
         for f in files:
-            if needle.lower() in f.lower():
-                p = os.path.join(base, f)
+            if needle.lower() not in f.lower():
+                continue
+            p = os.path.join(base, f)
+            try:
                 gb = os.path.getsize(p) / 1e9
-                if gb >= min_gb:
-                    return p, gb
-    return None, 0.0
+            except OSError:
+                continue
+            if gb > best_gb:
+                best, best_gb = p, gb
+    return (best, best_gb) if best_gb >= min_gb else (best, best_gb)
 
 
 def blender():
@@ -125,8 +138,15 @@ def weights():
         if not os.path.isdir(d):
             problems.append(f"{label}: {d} missing")
             continue
-        total = sum(os.path.getsize(os.path.join(b, f))
-                    for b, _, fs in os.walk(d) for f in fs) / 1e9
+        total = 0.0
+        for b, dd, fs in os.walk(d):
+            dd[:] = [x for x in dd if not x.startswith(".")]
+            for f in fs:
+                try:
+                    total += os.path.getsize(os.path.join(b, f))
+                except OSError:
+                    pass
+        total /= 1e9
         if total < 0.5:
             problems.append(f"{label}: only {total:.2f} GB under {sub}/ - "
                             "gated licence probably not accepted")
