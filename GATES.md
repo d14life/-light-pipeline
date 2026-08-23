@@ -29,3 +29,8 @@ Each gate re-proves a claim that was previously made in prose.
   CHECK: python checks/verify_setup.py blender-gpu
   EXPECT: gpu verification passed
   EVIDENCE: exit=0; shell=C:\Windows\system32\cmd.exe; cwd=C:\Users\D1\Downloads\light-pipeline; path=af8571194fcc/51 entries; output=gpu verification passed (HIP: AMD Radeon RX 6650 XT)
+
+- [x] G6: conditioning decimates, keeps UVs, corrects metalness and sets real scale
+  CHECK: python checks/verify_setup.py conditioning
+  EXPECT: conditioning verification passed
+  EVIDENCE: exit=0; shell=C:\Windows\system32\cmd.exe; cwd=C:\Users\D1\Downloads\light-pipeline; path=af8571194fcc/51 entries; output=conditioning verification passed (400 tris, 0.12 m, uv kept, web 10.3 KB)

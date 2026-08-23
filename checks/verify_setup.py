@@ -12,6 +12,7 @@ marker is the last statement in each function and nothing prints it early.
     python checks/verify_setup.py look-video
     python checks/verify_setup.py line-endings
     python checks/verify_setup.py blender-gpu
+    python checks/verify_setup.py conditioning
 """
 
 import os
@@ -164,7 +165,71 @@ def blender_gpu():
     print(f"gpu verification passed ({backend.group(1)}: {active.group(1).strip()})")
 
 
+def conditioning():
+    """Both outputs must be right, and they are right in different ways.
+
+    The Blender asset is checked by opening it. The web asset cannot be opened
+    - meshopt is in extensionsRequired - so it is checked by parsing its glTF
+    JSON directly. Checking the web file with Blender would fail for a reason
+    that is actually correct behaviour.
+    """
+    import json
+    import struct
+
+    src = os.path.join(ROOT, "checks", "_fixture.glb")
+    if not os.path.exists(src):
+        look_glb()
+    dst = os.path.join(ROOT, "checks", "_tmp_web.glb")
+    web = dst.replace(".glb", ".web.glb")
+    r = run([sys.executable, os.path.join(ROOT, "conditioning", "to_web.py"),
+             src, dst, "--tris", "400", "--size-mm", "120", "--mat-class", "steel"])
+    if r.returncode != 0:
+        die("to_web.py exited %d: %s" % (r.returncode, (r.stderr or r.stdout)[-400:]))
+    if "conditioning passed" not in r.stdout:
+        die("to_web.py did not report success")
+    if "metalness corrected (steel)" not in r.stdout:
+        die("metalness was not corrected to the declared class")
+    m = re.search(r"tris \d+ -> (\d+)", r.stdout)
+    if not m:
+        die("no triangle count reported")
+    got = int(m.group(1))
+    if got > 440:
+        die("decimation missed the budget: %d tris for a target of 400" % got)
+
+    # the assembly asset: Blender must be able to open it
+    r2 = run([sys.executable, os.path.join(ROOT, "look.py"), "glb", dst, "1"])
+    if "uv=True" not in r2.stdout:
+        die("UVs did not survive into the blender asset")
+    mb = re.search(r"bounds \(([\d.]+)", r2.stdout)
+    if not mb:
+        die("blender could not open the assembly asset")
+    longest = float(mb.group(1))
+    if abs(longest - 0.12) > 0.005:
+        die("real-world scale wrong: longest axis %s m, expected 0.120" % longest)
+
+    # the web asset: parse the container, do not try to open it
+    if not os.path.exists(web):
+        die("no web asset written")
+    raw = open(web, "rb").read()
+    j = json.loads(raw[20:20 + struct.unpack("<I", raw[12:16])[0]])
+    if "EXT_meshopt_compression" not in (j.get("extensionsRequired") or []):
+        die("web asset is not meshopt-compressed")
+    has_uv = any("TEXCOORD_0" in prim.get("attributes", {})
+                 for mesh in j.get("meshes", [])
+                 for prim in mesh.get("primitives", []))
+    if not has_uv:
+        die("prune stripped TEXCOORD_0 from the web asset")
+    if os.path.getsize(web) >= os.path.getsize(dst):
+        die("web asset is not smaller than the plain one")
+    kb = os.path.getsize(web) / 1024
+    os.remove(dst)
+    os.remove(web)
+    print("conditioning verification passed (%d tris, %s m, uv kept, web %.1f KB)"
+          % (got, longest, kb))
+
+
 MODES = {
+    "conditioning": conditioning,
     "scaffold": scaffold, "look-glb": look_glb, "look-video": look_video,
     "line-endings": line_endings, "blender-gpu": blender_gpu,
 }
