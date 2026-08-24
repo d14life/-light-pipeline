@@ -58,11 +58,22 @@ def convert(ui, info):
                 if isinstance(v[0], list) or v[0] in ("INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"):
                     widget_names.append(k)
 
+        # A seed widget emits TWO entries - the value and the
+        # control_after_generate mode ('fixed', 'randomize', ...) - while
+        # declaring only one input. Nothing in /object_info marks this, so it
+        # has to be handled by name, and missing it shifts every later widget
+        # by one: 'heun' lands in an INT resolution field and the whole graph
+        # fails validation while still reporting success.
         inputs = {}
         vals = list(n.get("widgets_values") or [])
-        for i, k in enumerate(widget_names):
-            if i < len(vals):
-                inputs[k] = vals[i]
+        vi = 0
+        for k in widget_names:
+            if vi >= len(vals):
+                break
+            inputs[k] = vals[vi]
+            vi += 1
+            if k in ("seed", "noise_seed") and vi < len(vals) and                     vals[vi] in ("fixed", "increment", "decrement", "randomize"):
+                vi += 1
         for slot in (n.get("inputs") or []):
             if slot.get("link") is not None and slot["link"] in src:
                 inputs[slot["name"]] = list(src[slot["link"]])
