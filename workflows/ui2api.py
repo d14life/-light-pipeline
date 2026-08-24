@@ -47,14 +47,14 @@ def convert(ui, info):
             continue
 
         spec = info[t]["input"]
-        # widget inputs are the required/optional entries that are not links
-        linked = {i.get("name") for i in (n.get("inputs") or []) if i.get("link") is not None}
+        # Every widget-capable input keeps its slot in widgets_values EVEN when
+        # the editor has converted it to a link. Skipping linked ones here
+        # shifts every later value by one - which silently put a filename into
+        # a file_format field and produced a run that succeeded and wrote
+        # nothing. Map positionally over all of them, then let links override.
         widget_names = []
         for grp in ("required", "optional"):
             for k, v in (spec.get(grp) or {}).items():
-                if k in linked:
-                    continue
-                # a slot whose type is a list of choices or a primitive is a widget
                 if isinstance(v[0], list) or v[0] in ("INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"):
                     widget_names.append(k)
 
