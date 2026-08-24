@@ -67,6 +67,22 @@ def convert(ui, info):
             if slot.get("link") is not None and slot["link"] in src:
                 inputs[slot["name"]] = list(src[slot["link"]])
 
+        # Positional mapping drifts whenever the installed node has gained an
+        # input since the workflow was saved: widgets_values runs out and a
+        # required field ends up absent. ComfyUI then fails validation, ignores
+        # every output, and still reports the prompt as succeeded in 0.04s.
+        # Fill anything still missing from the node's own declared default.
+        for k, v in (spec.get("required") or {}).items():
+            if k in inputs:
+                continue
+            meta = v[1] if len(v) > 1 and isinstance(v[1], dict) else {}
+            if "default" in meta:
+                inputs[k] = meta["default"]
+            elif isinstance(v[0], list) and v[0]:
+                inputs[k] = v[0][0]
+            elif isinstance(v[0], dict) and v[0].get("options"):
+                inputs[k] = v[0]["options"][0]
+
         out[str(n["id"])] = {"class_type": t, "inputs": inputs}
 
     # drop links that point at nodes we skipped, or /prompt rejects the graph
