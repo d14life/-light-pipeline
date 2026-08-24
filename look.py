@@ -112,6 +112,9 @@ mode, src, out_dir, views = argv[0], argv[1], argv[2], int(argv[3])
 
 s = bpy.context.scene
 s.render.engine = "BLENDER_EEVEE_NEXT"      # a check, not a beauty pass
+# Exposure matters even for a check: a bright key over a dark albedo reads
+# as "the texture is white" when the texture is fine. Keep it near neutral.
+s.view_settings.exposure = -0.5
 s.render.resolution_x = s.render.resolution_y = 420
 s.render.film_transparent = False
 s.view_settings.view_transform = "AgX"
@@ -142,9 +145,9 @@ if mode == "glb":
     print(f"[bl] bounds {tuple(round(v,3) for v in (hi-lo))}  radius {rad:.3f}")
 
     world = bpy.data.worlds.new("w"); world.use_nodes = True
-    world.node_tree.nodes["Background"].inputs[1].default_value = 1.2
+    world.node_tree.nodes["Background"].inputs[1].default_value = 0.35
     s.world = world
-    key = bpy.data.lights.new("key", "AREA"); key.energy = 400; key.size = rad*4
+    key = bpy.data.lights.new("key", "AREA"); key.energy = 150; key.size = rad*4
     ko = bpy.data.objects.new("key", key); s.collection.objects.link(ko)
     ko.location = ctr + mathutils.Vector((rad*2, -rad*2, rad*3))
     ko.rotation_euler = (0.7, 0, 0.8)
