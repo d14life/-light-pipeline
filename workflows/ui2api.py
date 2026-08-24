@@ -123,3 +123,16 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+# ---------------------------------------------------------------------------
+# Running ComfyUI-Trellis2's own example workflows needs ITS OWN wheels, not
+# the upstream projects. Verified the hard way:
+#
+#   o_voxel   upstream microsoft/TRELLIS.2 lacks tiled_flexible_dual_grid_to_mesh
+#             -> build from https://github.com/visualbruno/TRELLIS.2  (o-voxel/)
+#   cumesh    upstream JeffreyXiang/CuMesh lacks reconstruct_mesh_dc_quad
+#             -> install custom_nodes/ComfyUI-Trellis2/wheels/Linux/Torch270/
+#                cumesh-1.0-cp312-cp312-linux_x86_64.whl
+#
+# Both fail at run time, deep inside the graph, with a bare AttributeError -
+# nothing in any requirements file hints that the forks are required.
